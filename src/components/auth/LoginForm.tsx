@@ -27,7 +27,6 @@ export function LoginForm() {
     setIsLoading(true);
     
     try {
-      // In a real application, this would validate against a database
       await login(email, password, role);
       toast.success("Login successful!");
       
@@ -40,7 +39,11 @@ export function LoginForm() {
         navigate("/admin-dashboard");
       }
     } catch (error) {
-      toast.error("Invalid credentials. Please try again.");
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error("Invalid credentials. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }

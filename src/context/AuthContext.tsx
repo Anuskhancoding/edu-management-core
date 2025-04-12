@@ -1,5 +1,7 @@
 
 import { createContext, useState, useContext, useEffect, ReactNode } from "react";
+import { addUser, findUser, UserRecord } from "@/utils/csvStorage";
+import { toast } from "sonner";
 
 interface AuthUser {
   id: string;
@@ -14,6 +16,7 @@ interface AuthContextType {
   login: (email: string, password: string, role: string) => Promise<void>;
   register: (name: string, email: string, password: string, role: string) => Promise<void>;
   logout: () => void;
+  exportUserData: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,38 +35,84 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = async (email: string, password: string, role: string) => {
-    // In a real app, this would call an API to authenticate the user
-    // For now, we'll simulate authentication with localStorage
+    // Simulate API call for realistic UX
+    await new Promise(resolve => setTimeout(resolve, 500));
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Create mock user based on role
-    const newUser = {
-      id: Math.random().toString(36).substring(2, 9),
-      name: email.split('@')[0],
-      email,
-      role: role as "student" | "teacher" | "admin"
-    };
-    
-    setUser(newUser);
-    setIsAuthenticated(true);
-    localStorage.setItem("user", JSON.stringify(newUser));
+    try {
+      // Find user in CSV storage
+      const foundUser = findUser(email, password);
+      
+      if (!foundUser) {
+        throw new Error("Invalid credentials or user not found");
+      }
+      
+      // Check if role matches
+      if (foundUser.role !== role) {
+        throw new Error(`Account exists but not as a ${role}. Please select the correct role.`);
+      }
+      
+      // Convert to AuthUser format
+      const authUser: AuthUser = {
+        id: foundUser.id,
+        name: foundUser.name,
+        email: foundUser.email,
+        role: foundUser.role
+      };
+      
+      setUser(authUser);
+      setIsAuthenticated(true);
+      localStorage.setItem("user", JSON.stringify(authUser));
+      
+      return Promise.resolve();
+    } catch (error) {
+      return Promise.reject(error);
+    }
   };
 
   const register = async (name: string, email: string, password: string, role: string) => {
-    // In a real app, this would call an API to register the user
     // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 500));
     
-    // Just simulate successful registration
-    return Promise.resolve();
+    try {
+      // Add user to CSV storage
+      addUser({
+        name,
+        email,
+        password, // In a real app, this should be hashed
+        role: role as "student" | "teacher" | "admin"
+      });
+      
+      return Promise.resolve();
+    } catch (error) {
+      return Promise.reject(error);
+    }
   };
 
   const logout = () => {
     setUser(null);
     setIsAuthenticated(false);
     localStorage.removeItem("user");
+  };
+  
+  const exportUserData = () => {
+    try {
+      // Create a downloadable CSV file
+      const csvData = localStorage.getItem("users_csv_string") || "No users found";
+      const blob = new Blob([csvData], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      
+      // Create a download link and trigger it
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "users.csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+      toast.success("User data exported successfully");
+    } catch (error) {
+      toast.error("Failed to export user data");
+    }
   };
 
   return (
@@ -74,6 +123,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         login,
         register,
         logout,
+        exportUserData
       }}
     >
       {children}

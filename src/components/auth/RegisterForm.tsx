@@ -36,10 +36,14 @@ export function RegisterForm() {
     try {
       // In a real application, this would create an account in the database
       await register(name, email, password, role);
-      toast.success("Registration successful!");
+      toast.success("Registration successful! Please login.");
       navigate("/login");
     } catch (error) {
-      toast.error("Registration failed. Please try again.");
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error("Registration failed. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
